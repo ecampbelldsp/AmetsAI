@@ -1,0 +1,66 @@
+[
+    {
+        "ID_Visita": "V-001",
+        "Fecha": "2026-07-10",
+        "Cliente": "Dr. Alberto Ruiz",
+        "Especialidad": "Cardiología",
+        "Tipo_Registro": "Transcripción de nota de voz",
+        "Texto": "Acabo de salir de la consulta del doctor Ruiz. Visita de seguimiento bastante rápida. El doctor comenta que sigue recetando el antihipertensivo de la competencia porque sus pacientes ya están acostumbrados al formato de la pastilla. Le he dejado 5 muestras de CardioPlus y le he recordado la mejora en la adherencia que demuestra nuestro último estudio clínico. Hay que insistir en la próxima visita y traerle gráficas comparativas."
+    },
+    {
+        "ID_Visita": "V-002",
+        "Fecha": "2026-07-15",
+        "Cliente": "Dra. Elena Torres",
+        "Especialidad": "Endocrinología",
+        "Tipo_Registro": "Notas de visita presencial",
+        "Texto": "Doctora muy receptiva hoy. Presentación de los resultados de fase 3 de Glucofast. Me ha preguntado específicamente por las contraindicaciones en pacientes con insuficiencia renal leve o moderada. Quedo en mandarle la ficha técnica actualizada por email esta misma tarde. Tiene mucho potencial para subir de segmento si le resolvemos esta duda, ya que tiene un volumen alto de pacientes diabéticos tipo 2."
+    },
+    {
+        "ID_Visita": "V-003",
+        "Fecha": "2026-07-28",
+        "Cliente": "Dr. Miguel Sánchez",
+        "Especialidad": "Medicina Familiar",
+        "Tipo_Registro": "Transcripción de nota de voz",
+        "Texto": "Nada, hoy ha sido imposible. Consulta totalmente saturada en el centro de salud, más de 40 pacientes en la sala de espera. No me ha podido atender. Le he dejado los folletos de la nueva campaña y dos bolígrafos a la enfermera de triaje. Intentaré llamarle la semana que viene para agendar un hueco específico."
+    },
+    {
+        "ID_Visita": "V-004",
+        "Fecha": "2026-08-02",
+        "Cliente": "Dra. Laura Gómez",
+        "Especialidad": "Neurología",
+        "Tipo_Registro": "Notas de visita presencial (Videollamada)",
+        "Texto": "Reunión virtual de 15 minutos. Ha mostrado mucho interés en NeuroMend. Dice que va a empezar a incluirlo en sus pautas para pacientes jóvenes de reciente diagnóstico, ya que el perfil de efectos secundarios le parece muy favorable. Me pide que le contacte con el departamento médico para discutir un posible patrocinio para el congreso nacional de octubre."
+    },
+    {
+        "ID_Visita": "V-005",
+        "Fecha": "2026-08-05",
+        "Cliente": "Dr. Javier Castro",
+        "Especialidad": "Traumatología",
+        "Tipo_Registro": "Transcripción de nota de voz",
+        "Texto": "Visita difícil. El doctor Castro sigue con reticencias sobre el precio de nuestro antiinflamatorio en comparación con los genéricos. Le he explicado que el coste-beneficio a largo plazo es mejor por la reducción de problemas gástricos, pero no parece convencido. Necesitaría que marketing nos pase algún material de 'value proposition' enfocado al paciente. De momento, lo dejo en segmento de adopción baja."
+    },
+    {
+        "ID_Visita": "V-006",
+        "Fecha": "2026-08-10",
+        "Cliente": "Dra. Sofía Navarro",
+        "Especialidad": "Oncología",
+        "Tipo_Registro": "Notas de visita presencial",
+        "Texto": "Visita de presentación del nuevo protocolo. La doctora está alineada con nuestra visión terapéutica. Menciona que otros compañeros del hospital están teniendo buenos resultados, lo cual le da confianza. Hemos acordado una sesión clínica para todo su departamento a finales de mes. Cierro la visita con un nivel de compromiso alto."
+    },
+    {
+        "ID_Visita": "V-007",
+        "Fecha": "2026-08-14",
+        "Cliente": "Dr. Ignacio Peña",
+        "Especialidad": "Cardiología",
+        "Tipo_Registro": "Transcripción de nota de voz",
+        "Texto": "El doctor Peña está de vacaciones hasta septiembre, me atendió su residente. Le dejé información básica de CardioPlus. No cuenta como visita efectiva, apuntar para re-planificar a mediados de septiembre."
+    },
+    {
+        "ID_Visita": "V-008",
+        "Fecha": "2026-08-18",
+        "Cliente": "Dra. Carmen Alarcón",
+        "Especialidad": "Neumología",
+        "Tipo_Registro": "Notas de visita presencial",
+        "Texto": "Muy buena visita. Hemos estado hablando sobre el repunte de casos de asma estacional. Ha empezado a prescribir nuestro inhalador a pacientes pediátricos y nota una mejoría rápida. Se queja un poco del diseño del dosificador, dice que a algunas personas mayores les cuesta usarlo. Sería importante escalar este feedback a producto. Le he invitado al webinar de la semana que viene."
+    }
+]

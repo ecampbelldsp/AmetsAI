@@ -1,0 +1,154 @@
+[
+    {
+        "document_id": "doc_cardioplus_smpc_001",
+        "document_type": "Ficha Tecnica / SmPC",
+        "extraction_metadata": {
+            "pipeline": "ametsai_med_ner_v1",
+            "model": "entity_extractor_transformer_finetuned",
+            "confidence_threshold": 0.92
+        },
+        "extracted_entities": {
+            "medication": {
+                "brand_name": "CardioPlus",
+                "active_ingredient": "Cardiopril",
+                "form": "Comprimido",
+                "standard_dosage": "10 mg"
+            },
+            "indications": [
+                "Hipertensión arterial esencial",
+                "Prevención de eventos cardiovasculares"
+            ],
+            "posology_rules": [
+                {
+                    "condition": "Estándar",
+                    "dosage": "10 mg/día",
+                    "action": "Mantener dosis"
+                },
+                {
+                    "condition": "Pacientes mayores de 75 años",
+                    "dosage": "5 mg/día",
+                    "action": "Reducir dosis inicial"
+                }
+            ],
+            "contraindications": [
+                "Hipersensibilidad al principio activo",
+                "Antecedentes de angioedema",
+                "Segundo y tercer trimestre del embarazo",
+                "Uso concomitante con aliskireno en pacientes con diabetes"
+            ],
+            "warnings": [
+                "Riesgo de hipotensión sintomática",
+                "Monitorización de la función renal recomendada"
+            ],
+            "interactions": [
+                "Diuréticos ahorradores de potasio",
+                "AINEs"
+            ],
+            "adverse_effects": [
+                "Tos seca",
+                "Mareos",
+                "Hiperpotasemia"
+            ]
+        }
+    },
+    {
+        "document_id": "doc_glucofast_smpc_001",
+        "document_type": "Ficha Tecnica / SmPC",
+        "extraction_metadata": {
+            "pipeline": "ametsai_med_ner_v1",
+            "model": "entity_extractor_transformer_finetuned",
+            "confidence_threshold": 0.85
+        },
+        "extracted_entities": {
+            "medication": {
+                "brand_name": "Glucofast",
+                "active_ingredient": "Glucofastina",
+                "form": "Comprimido recubierto con película",
+                "standard_dosage": "50 mg"
+            },
+            "indications": [
+                "Diabetes mellitus tipo 2"
+            ],
+            "posology_rules": [
+                {
+                    "condition": "Estándar",
+                    "dosage": "50 mg/día",
+                    "action": "Mantener dosis"
+                },
+                {
+                    "condition": "Insuficiencia renal leve (eGFR 60-<90)",
+                    "dosage": "50 mg/día",
+                    "action": "Sin ajuste"
+                },
+                {
+                    "condition": "Insuficiencia renal moderada (eGFR 30-<60)",
+                    "dosage": "25 mg/día",
+                    "action": "Reducir dosis"
+                }
+            ],
+            "contraindications": [
+                "Hipersensibilidad al principio activo",
+                "Insuficiencia renal grave (eGFR < 30 ml/min/1,73 m2)",
+                "Enfermedad renal terminal (ERT)",
+                "Diálisis"
+            ],
+            "warnings": [
+                "Eficacia reducida en insuficiencia renal moderada",
+                "Riesgo de hipovolemia"
+            ],
+            "interactions": [
+                "Diuréticos tiazídicos",
+                "Diuréticos del asa"
+            ],
+            "adverse_effects": [
+                "Hipoglucemia",
+                "Infecciones del tracto urinario",
+                "Infecciones micóticas genitales"
+            ]
+        }
+    },
+    {
+        "document_id": "doc_neuromend_smpc_001",
+        "document_type": "Ficha Tecnica / SmPC",
+        "extraction_metadata": {
+            "pipeline": "ametsai_med_ner_v1",
+            "model": "entity_extractor_transformer_finetuned",
+            "confidence_threshold": 0.88
+        },
+        "extracted_entities": {
+            "medication": {
+                "brand_name": "NeuroMend",
+                "active_ingredient": "Neuromendina",
+                "form": "Cápsula dura",
+                "standard_dosage": "150 mg"
+            },
+            "indications": [
+                "Epilepsia de reciente diagnóstico",
+                "Trastornos del espectro neuropático"
+            ],
+            "posology_rules": [
+                {
+                    "condition": "Estándar",
+                    "dosage": "150 mg/día divididos en dos tomas",
+                    "action": "Escalado gradual"
+                }
+            ],
+            "contraindications": [
+                "Hipersensibilidad al principio activo"
+            ],
+            "warnings": [
+                "Riesgo de ideación y comportamiento suicida",
+                "No suspender de forma abrupta (riesgo de efecto rebote)"
+            ],
+            "interactions": [
+                "Depresores del sistema nervioso central (SNC)",
+                "Alcohol"
+            ],
+            "adverse_effects": [
+                "Somnolencia",
+                "Fatiga",
+                "Mareos"
+            ]
+        }
+    }
+]
