@@ -33,6 +33,7 @@ class AgentState(TypedDict):
     clinical_context: str
     is_compliant: bool
     compliance_reasoning: str
+    ml_insights: dict
     strategic_insight: str
     final_recommendation: str
 
@@ -48,11 +49,15 @@ class ComplianceResult(BaseModel):
 
 
 class CommercialInsightResult(BaseModel):
+    # Forzamos al modelo a razonar sobre las métricas (este campo debe ir primero)
+    ml_rationale: str = Field(
+        description="Explicación detallada de cómo las métricas del modelo predictivo (ej. client_segment, churn_risk_score, predicted_value_tier) justifican y dan forma a la estrategia propuesta."
+    )
     strategic_insight: str = Field(
-        description="Un párrafo explicando cómo el delegado puede aumentar la cuota de prescripción para este perfil médico (ej. identificando un nicho de pacientes infra-tratados), estrictamente dentro de las indicaciones aprobadas."
+        description="Un párrafo explicando cómo el delegado puede aumentar la cuota de prescripción, estrictamente dentro de las indicaciones aprobadas."
     )
     tactical_actions: list[str] = Field(
-        description="Lista de 2 a 3 recomendaciones accionables claras (ej. enviar email, agendar visita, preparar material). Si te basas en una restricción médica, debes citar el [Source: ID_DEL_DOCUMENTO]."
+        description="Lista de 2 a 3 recomendaciones accionables claras (ej. enviar email, agendar visita). Si te basas en una restricción médica, cita el [Source: ID_DEL_DOCUMENTO]."
     )
 
 
@@ -198,72 +203,115 @@ class AgentOrchestrator:
     def _generate_actionable_insight_node(self, state: AgentState) -> AgentState:
         """Nodo 3B: Genera la estrategia y los siguientes pasos con salida estructurada."""
         logger.info("Ejecutando nodo: generate_actionable_insight_node")
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "Eres un estratega comercial farmacéutico de alto nivel...",
+                    "Eres un estratega comercial farmacéutico de alto nivel. Basándote en el historial del cliente, "
+                    "los datos de nuestros modelos predictivos (ML) y la transcripción de la visita, tu objetivo es identificar "
+                    "oportunidades de crecimiento comercial estrictamente dentro de las indicaciones médicas aprobadas.\n\n"
+                    "Explica cómo tú analisis usa los resultados de los modelo predictivos como base."
+                    "REGLA CRÍTICA DE TRAZABILIDAD: Si basas tu recomendación en una restricción médica, "
+                    "debes citar el documento clínico extraído utilizando este formato exacto: [Source: ID_DEL_DOCUMENTO].\n\n"
+                    "Historial Previo:\n{commercial_context}\n\n"
+                    "Resultados del Modelo Predictivo (ML Scoring):\n{ml_insights}\n\n"
+                    "Ficha Técnica:\n{clinical_context}",
                 ),
-                ("user", "Nueva visita (Transcripción):\n{transcription}"),
+                (
+                    "user",
+                    "Nueva visita (Transcripción):\n{transcription}",
+                ),
             ]
         )
+
         structured_generator = self.llm_generator.with_structured_output(
             CommercialInsightResult
         )
         chain = prompt | structured_generator
+
         try:
             result: CommercialInsightResult = chain.invoke(
                 {
                     "commercial_context": state["commercial_context"],
                     "clinical_context": state["clinical_context"],
+                    "ml_insights": json.dumps(state.get("ml_insights", {}), ensure_ascii=False, indent=2),
                     "transcription": state["transcription"],
                 }
             )
-            strategic_insight = result.strategic_insight
-            tactical_actions_str = "\n".join(
-                [f"- {action}" for action in result.tactical_actions]
+
+            # Concatenamos el análisis ML con la estrategia para el log final
+            strategic_insight = (
+                f"📊 ANÁLISIS PREDICTIVO (ML):\n{result.ml_rationale}\n\n"
+                f"🎯 ESTRATEGIA COMERCIAL:\n{result.strategic_insight}"
             )
+
+            tactical_actions_str = "\n".join([f"- {action}" for action in result.tactical_actions])
             logger.info("Insights comerciales generados exitosamente.")
+
         except Exception as e:
             strategic_insight = "Error al generar la estrategia de crecimiento."
-            tactical_actions_str = (
-                f"Fallo en la generación táctica estructurada: {str(e)}"
-            )
-            logger.exception(
-                "Excepción durante la invocación del orquestador comercial:"
-            )
+            tactical_actions_str = f"Fallo en la generación táctica estructurada: {str(e)}"
+            logger.exception("Excepción durante la invocación del orquestador comercial:")
+
         return {
             "strategic_insight": strategic_insight,
-            "final_recommendation": tactical_actions_str,
+            "final_recommendation": tactical_actions_str
         }
+
+    def _predictive_scoring_node(self, state: AgentState) -> AgentState:
+        """Nodo ML: Simula los algoritmos core (scoring, segmentación, valor)."""
+        logger.info("Ejecutando nodo: predictive_scoring_node (Mock ML/DL)")
+
+        # En producción, aquí llamaríamos a los modelos alojados en Vertex AI
+        # consumiendo las features extraídas del historial del cliente.
+        mock_ml_output = {
+            "client_segment": "High-Potential / Early Adopter",
+            "churn_risk_score": 0.12,  # Riesgo de abandono muy bajo
+            "predicted_value_tier": "Tier 1 (Top 20% prescriptores)",
+            "recommended_action_type": "Upsell / Consolidación de cuota"
+        }
+        logger.info(mock_ml_output)
+
+        return {"ml_insights": mock_ml_output}
 
     def _route_compliance(self, state: AgentState) -> str:
         """Decide el camino en base al status de compliance."""
         if state["is_compliant"]:
-            logger.info("Enrutando hacia: generate_insight")
-            return "generate_insight"
+            logger.info("Enrutando hacia: predictive_scoring")
+            return "predictive_scoring"  # Modificado: Ahora va al nodo ML primero
         else:
             logger.info("Enrutando hacia: generate_alert")
             return "generate_alert"
 
     def _build_graph(self):
         workflow = StateGraph(AgentState)
+
+        # 1. Añadir los nodos
         workflow.add_node("retrieve", self._retrieve_data_node)
         workflow.add_node("compliance_gate", self._compliance_gate_node)
+        workflow.add_node("predictive_scoring", self._predictive_scoring_node)  # NUEVO NODO
         workflow.add_node("generate_insight", self._generate_actionable_insight_node)
         workflow.add_node("generate_alert", self._generate_alert_node)
+
+        # 2. Definir el flujo (Edges)
         workflow.set_entry_point("retrieve")
         workflow.add_edge("retrieve", "compliance_gate")
+
+        # 3. Enrutamiento condicional
         workflow.add_conditional_edges(
             "compliance_gate",
             self._route_compliance,
-            {
-                "generate_insight": "generate_insight",
-                "generate_alert": "generate_alert",
-            },
+            {"predictive_scoring": "predictive_scoring", "generate_alert": "generate_alert"},
         )
+
+        # 4. Conectar el nodo ML con el generador de insights
+        workflow.add_edge("predictive_scoring", "generate_insight")
+
+        # 5. Finalizar el grafo
         workflow.add_edge("generate_insight", END)
         workflow.add_edge("generate_alert", END)
+
         return workflow.compile()
 
     def invoke(self, input_state: dict) -> dict:
