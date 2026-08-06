@@ -46,7 +46,7 @@ class STTStreamSession:
         self.residual_samples = np.array([], dtype=np.float32)
         self.vad_model.reset_states()
 
-    def process_chunk(self, raw_bytes: bytes) -> Dict[str, Any] | None:
+    def process_chunk(self, raw_bytes: bytes, initial_prompt: str = None) -> Dict[str, Any] | None:
         new_samples = np.frombuffer(raw_bytes, dtype=np.float32)
         audio_stream = np.concatenate((self.residual_samples, new_samples))
 
@@ -75,7 +75,7 @@ class STTStreamSession:
                     # --- ALIGNED METRICS LOGIC ---
                     start_transcription = time.time()
                     segments, _ = self.asr_model.transcribe(
-                        buffer_np, beam_size=1, language=self.language, word_timestamps=True, vad_filter=False
+                        buffer_np, beam_size=1, language=self.language, word_timestamps=True, vad_filter=False, initial_prompt=initial_prompt
                     )
                     inference_time_s = time.time() - start_transcription
                     audio_duration_s = len(buffer_np) / self.sample_rate
