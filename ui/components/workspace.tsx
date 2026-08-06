@@ -116,38 +116,25 @@ export function Workspace() {
         analysisResult = await response.json()
         setText(analysisResult.transcription)
       } else {
-        // This part can be adapted if you want to send text to a different endpoint
-        // For now, we'll use a mock result for text-only analysis
+        // ✅ ELIMINADO EL MOCK: Ahora enviamos el texto directamente a LangGraph
         setStage('stt', 'running')
-        await new Promise((res) => setTimeout(res, 900))
+
+        const response = await fetch('http://127.0.0.1:8000/process-text/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: text }),
+        })
+
         setStage('stt', 'done')
         reveal('stt')
 
-        analysisResult = {
-          transcription: text,
-          is_compliant: true,
-          compliance_reasoning: 'Mock reasoning',
-          compliance_chain_of_thought: ['Mock step 1', 'Mock step 2'],
-          strategic_insight: 'Mock insight',
-          final_recommendation: 'Mock recommendation',
-          commercial_context: {
-            id: 'COM-123',
-            title: { en: 'Commercial Title', es: 'Título Comercial' },
-            body: { en: 'Commercial Body', es: 'Cuerpo Comercial' },
-          },
-          clinical_context: {
-            id: 'CLI-456',
-            title: { en: 'Clinical Title', es: 'Título Clínico' },
-            body: { en: 'Clinical Body', es: 'Cuerpo Clínico' },
-          },
-          // ✅ FIX: Añadido para satisfacer el tipado de TypeScript
-          ml_insights: {
-            client_segment: 'High-Potential / Early Adopter',
-            churn_risk_score: 0.12,
-            predicted_value_tier: 'Tier 1',
-            recommended_action_type: 'Upsell'
-          }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
+
+        analysisResult = await response.json()
       }
 
       setResult(analysisResult)

@@ -14,6 +14,8 @@ from core.stt.stt_pipeline import STTEngine
 from core.rag.vector_db import DualCorpusManager
 from core.agentic.core import AgentOrchestrator
 
+from pydantic import BaseModel
+
 # ==========================================
 # 0. Configuración de Logging
 # ==========================================
@@ -46,6 +48,11 @@ app.add_middleware(
 # ==========================================
 # Carga de Modelos y Componentes (al inicio)
 # ==========================================
+
+class TextInput(BaseModel):
+    text: str
+    use_local_model: bool = False
+
 def load_models():
     """Carga todos los modelos y componentes necesarios para la aplicación."""
     logger.info("Cargando modelos y componentes...")
@@ -142,6 +149,51 @@ async def process_audio(file: UploadFile = File(...), use_local_model: bool = Fa
         }
     except Exception as e:
         logger.error(f"Error durante el procesamiento del audio: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/process-text/")
+async def process_text(input_data: TextInput):
+    """
+    Endpoint para procesar texto directo (sin audio). Salta el STT y va directo al Agente.
+    """
+    try:
+        logger.info(f"Procesando texto directo: '{input_data.text[:50]}...'")
+
+        # Invocación directa del Agente
+        input_state = {"transcription": input_data.text}
+        final_state = agent_orchestrator.invoke(input_state)
+
+        # Formatear los contextos
+        commercial_str = final_state.get('commercial_context', '{}')
+        clinical_str = final_state.get('clinical_context', '{}')
+
+        commercial_doc = {
+            "id": "COM-RAG",
+            "title": {"es": "Historial CRM", "en": "CRM History"},
+            "body": {"es": commercial_str, "en": commercial_str}
+        }
+
+        clinical_doc = {
+            "id": "CLI-RAG",
+            "title": {"es": "Ficha Técnica", "en": "Clinical Data"},
+            "body": {"es": clinical_str, "en": clinical_str}
+        }
+
+        logger.info("Proceso de texto completado. Devolviendo resultados a la UI.")
+        return {
+            "transcription": input_data.text,
+            "is_compliant": final_state.get('is_compliant', False),
+            "compliance_reasoning": final_state.get('compliance_reasoning', 'N/A'),
+            "compliance_chain_of_thought": final_state.get('compliance_chain_of_thought', []),
+            "strategic_insight": final_state.get('strategic_insight', 'N/A'),
+            "final_recommendation": final_state.get('final_recommendation', 'No se generó ninguna recomendación.'),
+            "commercial_context": commercial_doc,
+            "clinical_context": clinical_doc,
+            "ml_insights": final_state.get('ml_insights', {}),
+        }
+    except Exception as e:
+        logger.error(f"Error durante el procesamiento de texto: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
