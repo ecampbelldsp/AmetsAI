@@ -1,5 +1,4 @@
 import logging
-import argparse
 import librosa
 import numpy as np
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -16,75 +15,54 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
-logger = logging.getLogger("MainScript")
+logger = logging.getLogger("AgenteModule")
 
 # ==========================================
-# Ejecución Principal
+# Funciones reutilizables
 # ==========================================
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ejecutar el pipeline del agente con un modelo específico.")
-    parser.add_argument(
-        "--model",
-        type=bool,
-        # choices=["local", "google"],
-        default=False,
-        help="Elige el modelo a utilizar: 'local' para el modelo local, 'google' para el modelo de Google."
-    )
-    args = parser.parse_args()
 
-    # --- Configuración de STT ---
-    vocabulary = "Glucofast, posología, insuficiencia renal moderada."
-    TEST_AUDIO_PATH = "/media/edwardl.campbell/D/code/AmetsAI/data/audio/audio.wav"
-    NETWORK_CHUNK_SIZE = 2048
-
-    # 1. Inicializar el motor STT
-    logger.info("Inicializando el motor STT...")
-    engine = STTEngine(asr_model_size="base", language="es", device="cuda", compute_type="float16")
-    session = engine.create_session()
-
-    # 2. Procesar el archivo de audio
-    logger.info(f"Cargando y remuestreando: {TEST_AUDIO_PATH}")
-    audio_data, _ = librosa.load(TEST_AUDIO_PATH, sr=16000, mono=True)
+def transcribe_audio(stt_engine: STTEngine, audio_path: str, vocabulary: str) -> str:
+    """
+    Procesa un archivo de audio y devuelve la transcripción.
+    """
+    logger.info(f"Cargando y remuestreando: {audio_path}")
+    audio_data, _ = librosa.load(audio_path, sr=16000, mono=True)
     raw_audio_bytes = audio_data.astype(np.float32).tobytes()
 
     logger.info("Simulando transmisión de WebSocket y transcribiendo...")
+    session = stt_engine.create_session()
     transcription = ""
+    NETWORK_CHUNK_SIZE = 2048
     bytes_per_chunk = NETWORK_CHUNK_SIZE * 4
+    
     for i in range(0, len(raw_audio_bytes), bytes_per_chunk):
         byte_chunk = raw_audio_bytes[i: i + bytes_per_chunk]
         record = session.process_chunk(byte_chunk, initial_prompt=vocabulary)
         if record and record["type"] == "transcript":
-            logger.info(f"Fragmento capturado: {record['text']}")
             transcription += record["text"] + " "
-    
-    logger.info(f"Transcripción final obtenida: '{transcription.strip()}'")
+            
+    final_transcription = transcription.strip()
+    logger.info(f"Transcripción final obtenida: '{final_transcription}'")
+    return final_transcription
 
-    # 3. Inicializar componentes de RAG y Agente
+def run_analysis(transcription: str, use_local_model: bool) -> dict:
+    """
+    Ejecuta el análisis de la transcripción con el agente.
+    """
     logger.info("Inicializando modelo de Embeddings y Vector DB...")
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     db_manager = DualCorpusManager(embeddings_model=embeddings, persist_directory="../data/chroma/local_chroma_db")
     db_manager.load_existing_db()
 
-    logger.info(f"Instanciando el orquestador del agente con el modelo: {args.model}")
-    use_local = args.model# == "google"
+    logger.info(f"Instanciando el orquestador del agente con el modelo: {'local' if use_local_model else 'remoto'}")
     agent_orchestrator = AgentOrchestrator(
         db_manager=db_manager,
         credentials_path="../.cred/credentials.yaml",
-        use_local_model=use_local
+        use_local_model=use_local_model
     )
 
-    # 4. Invocar el agente con la transcripción
-    input_state = {"transcription": transcription.strip()}
-
+    input_state = {"transcription": transcription}
     logger.info("Iniciando Orquestador LangGraph...")
     final_state = agent_orchestrator.invoke(input_state)
-
-    # 5. Mostrar resultados
-    logger.info("\n" + "="*30)
-    logger.info("=== RESULTADO FINAL DE LA PoC ===")
-    logger.info("="*30)
-    logger.info(f"Compliance Validado: {final_state.get('is_compliant', 'N/A')}")
-    logger.info(f"Razonamiento del Auditor: {final_state.get('compliance_reasoning', 'N/A')}")
-    logger.info(f"Estrategia Comercial:\n{final_state.get('strategic_insight', 'N/A')}")
-    logger.info(f"Acciones Tácticas:\n{final_state.get('final_recommendation', 'No se generó ninguna recomendación.')}")
-    logger.info("="*30)
+    
+    return final_state

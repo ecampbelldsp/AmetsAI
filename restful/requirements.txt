@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-multipart
+librosa
+numpy
+langchain-huggingface
+torch
+transformers
+sentence-transformers
+chromadb
+pyyaml
+google-generativeai

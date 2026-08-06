@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Mic, Upload, Sparkles, RotateCcw, Square, LoaderCircle } from 'lucide-react'
+import { Mic, Upload, Sparkles, RotateCcw, Square, LoaderCircle, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/lib/i18n'
 import { scenarios, type Scenario } from '@/lib/scenarios'
@@ -16,6 +16,8 @@ type Props = {
   onReset: () => void
   isAnalyzing: boolean
   hasResult: boolean
+  audioFile: File | null
+  onFileChange: (file: File | null) => void
 }
 
 export function InputPanel({
@@ -27,11 +29,14 @@ export function InputPanel({
   onReset,
   isAnalyzing,
   hasResult,
+  audioFile,
+  onFileChange,
 }: Props) {
   const { t, lang } = useI18n()
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (recording) {
@@ -47,12 +52,28 @@ export function InputPanel({
   function stopRecording() {
     setRecording(false)
     setSeconds(0)
-    // Simulated capture -> load the compliant sample transcription
-    onSelectScenario('compliant')
+    // In a real scenario, this would trigger processing of the recorded audio
+    // For now, we can simulate by selecting a default scenario or handling the blob
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null
+    onFileChange(file)
   }
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="audio/*"
+        className="hidden"
+      />
       <div>
         <h2 className="text-sm font-semibold tracking-tight">{t('input.title')}</h2>
         <p className="text-xs text-muted-foreground">{t('input.subtitle')}</p>
@@ -83,7 +104,7 @@ export function InputPanel({
 
         <button
           type="button"
-          onClick={() => onSelectScenario('compliant')}
+          onClick={handleUploadClick}
           disabled={isAnalyzing || recording}
           className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-medium transition-colors hover:border-accent/50 hover:bg-accent/5 disabled:opacity-50"
         >
@@ -91,6 +112,15 @@ export function InputPanel({
           {t('input.upload')}
         </button>
       </div>
+
+      {audioFile && (
+        <div className="flex items-center gap-2 rounded-lg bg-background p-2.5 text-sm text-muted-foreground">
+          <Paperclip className="h-4 w-4 shrink-0" />
+          <span className="truncate" title={audioFile.name}>
+            {audioFile.name}
+          </span>
+        </div>
+      )}
 
       {recording && (
         <div className="flex h-10 items-end gap-1 overflow-hidden rounded-lg bg-background px-3 py-2">
@@ -111,7 +141,7 @@ export function InputPanel({
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || !!audioFile}
           rows={5}
           placeholder={t('input.placeholder')}
           className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
@@ -130,7 +160,7 @@ export function InputPanel({
                 key={id}
                 type="button"
                 onClick={() => onSelectScenario(id)}
-                disabled={isAnalyzing || recording}
+                disabled={isAnalyzing || recording || !!audioFile}
                 className={cn(
                   'rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors disabled:opacity-50',
                   active
@@ -153,7 +183,7 @@ export function InputPanel({
       <div className="flex gap-2">
         <Button
           onClick={onAnalyze}
-          disabled={isAnalyzing || !value.trim()}
+          disabled={isAnalyzing || (!value.trim() && !audioFile)}
           className="flex-1 gap-2"
         >
           {isAnalyzing ? (
@@ -168,7 +198,7 @@ export function InputPanel({
             </>
           )}
         </Button>
-        {(hasResult || value) && !isAnalyzing && (
+        {(hasResult || value || audioFile) && !isAnalyzing && (
           <Button variant="outline" onClick={onReset} className="gap-2 bg-transparent">
             <RotateCcw className="h-4 w-4" />
             <span className="hidden sm:inline">{t('input.reset')}</span>

@@ -11,20 +11,39 @@ import { MlCard } from '@/components/results/ml-card'
 import { InsightCard } from '@/components/results/insight-card'
 import { AlertCard } from '@/components/results/alert-card'
 import { useI18n } from '@/lib/i18n'
-import { scenarios, type Scenario } from '@/lib/scenarios'
+import { type Scenario, type Doc } from '@/lib/scenarios'
 
 const STAGE_KEYS = ['stt', 'rag', 'compliance', 'ml', 'insight'] as const
 type StageKey = (typeof STAGE_KEYS)[number]
 
 const idleStages: Stage[] = STAGE_KEYS.map((key) => ({ key, state: 'idle' }))
 
+// Define a type for the API response
+type AnalysisResult = {
+  transcription: string
+  is_compliant: boolean | string
+  compliance_reasoning: string
+  compliance_chain_of_thought: string[]
+  strategic_insight: string
+  final_recommendation: string
+  commercial_context: Doc
+  clinical_context: Doc
+  ml_insights: {
+    client_segment: string
+    churn_risk_score: number
+    predicted_value_tier: string
+    recommended_action_type: string
+  }
+}
+
 export function Workspace() {
   const { t, lang } = useI18n()
   const [text, setText] = useState('')
+  const [audioFile, setAudioFile] = useState<File | null>(null)
   const [activeId, setActiveId] = useState<Scenario['id'] | null>(null)
   const [stages, setStages] = useState<Stage[]>(idleStages)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [result, setResult] = useState<Scenario | null>(null)
+  const [result, setResult] = useState<AnalysisResult | null>(null)
   const [visible, setVisible] = useState<Set<StageKey>>(new Set())
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
@@ -37,10 +56,16 @@ export function Workspace() {
     (id: Scenario['id']) => {
       clearTimers()
       setActiveId(id)
-      setText(scenarios[id].transcription[lang])
+      // This is a mock implementation, replace with actual logic if needed
+      const mockScenarios = {
+        compliant: { transcription: { [lang]: 'Compliant transcription example.' } },
+        alert: { transcription: { [lang]: 'Alert transcription example.' } },
+      }
+      setText(mockScenarios[id].transcription[lang])
       setResult(null)
       setStages(idleStages)
       setVisible(new Set())
+      setAudioFile(null)
     },
     [lang],
   )
@@ -48,6 +73,7 @@ export function Workspace() {
   const reset = useCallback(() => {
     clearTimers()
     setText('')
+    setAudioFile(null)
     setActiveId(null)
     setResult(null)
     setStages(idleStages)
@@ -58,66 +84,163 @@ export function Workspace() {
   const setStage = (key: StageKey, state: StageState) =>
     setStages((prev) => prev.map((s) => (s.key === key ? { ...s, state } : s)))
 
-  const analyze = useCallback(() => {
-    const scenario = activeId ? scenarios[activeId] : scenarios.compliant
+  const analyze = useCallback(async () => {
+    if (!audioFile && !text.trim()) return
+
     clearTimers()
     setIsAnalyzing(true)
-    setResult(scenario)
+    setResult(null)
     setVisible(new Set())
     setStages(idleStages)
 
-    const push = (fn: () => void, delay: number) => timers.current.push(setTimeout(fn, delay))
     const reveal = (key: StageKey) => setVisible((prev) => new Set(prev).add(key))
 
-    // STT
-    push(() => setStage('stt', 'running'), 200)
-    push(() => {
-      setStage('stt', 'done')
-      reveal('stt')
-    }, 1100)
+    try {
+      let analysisResult: AnalysisResult
 
-    // RAG
-    push(() => setStage('rag', 'running'), 1150)
-    push(() => {
-      setStage('rag', 'done')
-      reveal('rag')
-    }, 1900)
+      if (audioFile) {
+        const formData = new FormData()
+        formData.append('file', audioFile)
 
-    // Compliance
-    push(() => setStage('compliance', 'running'), 1950)
-    push(() => {
-      setStage('compliance', scenario.isCompliant ? 'done' : 'blocked')
-      reveal('compliance')
-    }, 2900)
+        setStage('stt', 'running')
+        const response = await fetch('http://127.0.0.1:8000/process-audio/', {
+          method: 'POST',
+          body: formData,
+        })
+        setStage('stt', 'done')
+        reveal('stt')
 
-    if (scenario.isCompliant) {
-      // ML scoring
-      push(() => setStage('ml', 'running'), 2950)
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        analysisResult = await response.json()
+        setText(analysisResult.transcription)
+      } else {
+        // This part can be adapted if you want to send text to a different endpoint
+        // For now, we'll use a mock result for text-only analysis
+        setStage('stt', 'running')
+        await new Promise((res) => setTimeout(res, 900))
+        setStage('stt', 'done')
+        reveal('stt')
+
+        analysisResult = {
+          transcription: text,
+          is_compliant: true,
+          compliance_reasoning: 'Mock reasoning',
+          compliance_chain_of_thought: ['Mock step 1', 'Mock step 2'],
+          strategic_insight: 'Mock insight',
+          final_recommendation: 'Mock recommendation',
+          commercial_context: {
+            id: 'COM-123',
+            title: { en: 'Commercial Title', es: 'Título Comercial' },
+            body: { en: 'Commercial Body', es: 'Cuerpo Comercial' },
+          },
+          clinical_context: {
+            id: 'CLI-456',
+            title: { en: 'Clinical Title', es: 'Título Clínico' },
+            body: { en: 'Clinical Body', es: 'Cuerpo Clínico' },
+          },
+          // ✅ FIX: Añadido para satisfacer el tipado de TypeScript
+          ml_insights: {
+            client_segment: 'High-Potential / Early Adopter',
+            churn_risk_score: 0.12,
+            predicted_value_tier: 'Tier 1',
+            recommended_action_type: 'Upsell'
+          }
+        }
+      }
+
+      setResult(analysisResult)
+
+      // Animate the rest of the pipeline based on the result
+      const push = (fn: () => void, delay: number) => timers.current.push(setTimeout(fn, delay))
+
+      push(() => setStage('rag', 'running'), 50)
       push(() => {
-        setStage('ml', 'done')
-        reveal('ml')
-      }, 3800)
-      // Insight
-      push(() => setStage('insight', 'running'), 3850)
+        setStage('rag', 'done')
+        reveal('rag')
+      }, 750)
+
+      push(() => setStage('compliance', 'running'), 800)
       push(() => {
-        setStage('insight', 'done')
-        reveal('insight')
-        setIsAnalyzing(false)
-      }, 4800)
-    } else {
-      // Downstream stages blocked
-      push(() => {
-        setStages((prev) =>
-          prev.map((s) => (s.key === 'ml' || s.key === 'insight' ? { ...s, state: 'blocked' } : s)),
-        )
-        reveal('insight') // used to reveal the alert block
-        setIsAnalyzing(false)
-      }, 3100)
+        const isCompliant =
+          analysisResult.is_compliant === true || analysisResult.is_compliant === 'true'
+        setStage('compliance', isCompliant ? 'done' : 'blocked')
+        reveal('compliance')
+
+        if (isCompliant) {
+          push(() => setStage('ml', 'running'), 50)
+          push(() => {
+            setStage('ml', 'done')
+            reveal('ml')
+          }, 850)
+          push(() => setStage('insight', 'running'), 900)
+          push(() => {
+            setStage('insight', 'done')
+            reveal('insight')
+            setIsAnalyzing(false)
+          }, 1800)
+        } else {
+          push(() => {
+            setStages((prev) =>
+              prev.map((s) =>
+                s.key === 'ml' || s.key === 'insight' ? { ...s, state: 'blocked' } : s,
+              ),
+            )
+            reveal('insight') // Reveals the alert block
+            setIsAnalyzing(false)
+          }, 200)
+        }
+      }, 1000)
+    } catch (error) {
+      console.error('Analysis failed:', error)
+      // Handle error state in UI
+      setStages(idleStages.map((s) => ({ ...s, state: 'blocked' })))
+      setIsAnalyzing(false)
     }
-  }, [activeId])
+  }, [audioFile, text, activeId])
 
   const hasResult = result !== null
   const show = (k: StageKey) => visible.has(k)
+  const isCompliant = result?.is_compliant === true || result?.is_compliant === 'true'
+
+  // 2. Mapear los datos reales de la API en lugar del mock hardcodeado
+  const resultAsScenario: Scenario | null = result
+    ? {
+        id: 'compliant',
+        isCompliant,
+        transcription: { en: result.transcription, es: result.transcription },
+        complianceReasoning: { en: result.compliance_reasoning, es: result.compliance_reasoning },
+        complianceChainOfThought: { en: result.compliance_chain_of_thought, es: result.compliance_chain_of_thought },
+        strategicInsight: result.strategic_insight,
+        recommendations: result.final_recommendation.split('\n'),
+        client: 'Dr. Garcia',
+        specialty: { en: 'Cardiology', es: 'Cardiología' },
+
+        // Mapeo dinámico de los datos de ML
+        ml: {
+          score: Math.round((1 - (result.ml_insights?.churn_risk_score || 0)) * 100), // Invertimos el churn para dar un "Health Score"
+          profile: result.ml_insights?.client_segment || 'N/A',
+          recommendedActionType: {
+            es: result.ml_insights?.recommended_action_type || 'N/A',
+            en: result.ml_insights?.recommended_action_type || 'N/A'
+          }
+        },
+
+        metrics: {
+          audioDurationS: 0,
+          inferenceMs: 0,
+          rtf: 0,
+          endpointLatencyMs: 0,
+          words: 0,
+          wpm: 0,
+          talkToListen: [0, 0],
+        },
+        words: { es: [], en: [] },
+        commercialContext: result.commercial_context,
+        clinicalContext: result.clinical_context,
+      }
+    : null
 
   return (
     <div className="min-h-svh">
@@ -142,6 +265,8 @@ export function Workspace() {
             <InputPanel
               value={text}
               onChange={setText}
+              audioFile={audioFile}
+              onFileChange={setAudioFile}
               activeScenario={activeId}
               onSelectScenario={selectScenario}
               onAnalyze={analyze}
@@ -165,14 +290,18 @@ export function Workspace() {
                 </p>
               </div>
             ) : (
-              <>
-                {show('stt') && result && <SttCard scenario={result} />}
-                {show('rag') && result && <ContextCard scenario={result} />}
-                {show('compliance') && result && <ComplianceCard scenario={result} />}
-                {result?.isCompliant && show('ml') && result.ml && <MlCard ml={result.ml} />}
-                {result?.isCompliant && show('insight') && <InsightCard scenario={result} />}
-                {result && !result.isCompliant && show('insight') && <AlertCard scenario={result} />}
-              </>
+              resultAsScenario && (
+                <>
+                  {show('stt') && <SttCard scenario={resultAsScenario} />}
+                  {show('rag') && <ContextCard scenario={resultAsScenario} />}
+                  {show('compliance') && <ComplianceCard scenario={resultAsScenario} />}
+                  {isCompliant && show('ml') && resultAsScenario.ml && (
+                    <MlCard ml={resultAsScenario.ml} />
+                  )}
+                  {isCompliant && show('insight') && <InsightCard scenario={resultAsScenario} />}
+                  {!isCompliant && show('insight') && <AlertCard scenario={resultAsScenario} />}
+                </>
+              )
             )}
           </div>
         </div>

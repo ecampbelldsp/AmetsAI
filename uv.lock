@@ -6796,6 +6796,7 @@ dependencies = [
     { name = "bitsandbytes" },
     { name = "datasets" },
     { name = "evaluate" },
+    { name = "fastapi" },
     { name = "faster-whisper" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
@@ -6819,6 +6820,7 @@ dependencies = [
     { name = "torch" },
     { name = "torchcodec" },
     { name = "transformers" },
+    { name = "uvicorn", extra = ["standard"] },
     { name = "vllm" },
 ]
 
@@ -6828,6 +6830,7 @@ requires-dist = [
     { name = "bitsandbytes", specifier = ">=0.49.2" },
     { name = "datasets", specifier = ">=4.5.0" },
     { name = "evaluate", specifier = ">=0.4.6" },
+    { name = "fastapi", specifier = ">=0.136.3" },
     { name = "faster-whisper", specifier = ">=1.2.1" },
     { name = "ipykernel", specifier = ">=7.2.0" },
     { name = "ipywidgets", specifier = ">=8.1.8" },
@@ -6851,6 +6854,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.10.0" },
     { name = "torchcodec", specifier = ">=0.10.0" },
     { name = "transformers", specifier = ">=5.2.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.1" },
     { name = "vllm", specifier = ">=0.26.0" },
 ]
 

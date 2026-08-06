@@ -31,8 +31,11 @@ class AgentState(TypedDict):
     transcription: str
     commercial_context: str
     clinical_context: str
+    raw_commercial_context: dict
+    raw_clinical_context: dict
     is_compliant: bool
     compliance_reasoning: str
+    compliance_chain_of_thought: list[str]
     ml_insights: dict
     strategic_insight: str
     final_recommendation: str
@@ -49,7 +52,6 @@ class ComplianceResult(BaseModel):
 
 
 class CommercialInsightResult(BaseModel):
-    # Forzamos al modelo a razonar sobre las métricas (este campo debe ir primero)
     ml_rationale: str = Field(
         description="Explicación detallada de cómo las métricas del modelo predictivo (ej. client_segment, churn_risk_score, predicted_value_tier) justifican y dan forma a la estrategia propuesta."
     )
@@ -122,12 +124,6 @@ class AgentOrchestrator:
             modelo_llm = "llama-3.3-70b-versatile"
             logger.info(f"Usando modelo {modelo_llm}")
             setup_environment(credentials_path)
-            # self.llm_validator = ChatGoogleGenerativeAI(
-            #     model="gemini-2.5-flash-lite", temperature=0.0
-            # )
-            # self.llm_generator = ChatGoogleGenerativeAI(
-            #     model="gemini-2.5-flash-lite", temperature=0.2
-            # )
             self.llm_validator = ChatGroq(
                 model=modelo_llm,
                 temperature=0.0
@@ -137,20 +133,47 @@ class AgentOrchestrator:
                 temperature=0.2
             )
 
-
     def _retrieve_data_node(self, state: AgentState) -> AgentState:
         """Nodo 1: Ejecuta la recuperación dual y formatea el contexto."""
         logger.info("Ejecutando nodo: retrieve_data_node")
         raw_context = self.db_manager.retrieve(
             state["transcription"], k_comercial=1, k_clinico=1
         )
-        com_ctx = json.dumps(
-            raw_context["contexto_comercial"], ensure_ascii=False, indent=2
-        )
-        clin_ctx = json.dumps(
-            raw_context["contexto_clinico"], ensure_ascii=False, indent=2
-        )
-        return {"commercial_context": com_ctx, "clinical_context": clin_ctx}
+
+        raw_com_doc = raw_context["contexto_comercial"][0] if raw_context["contexto_comercial"] else None
+        raw_clin_doc = raw_context["contexto_clinico"][0] if raw_context["contexto_clinico"] else None
+
+        com_ctx_for_llm = {}
+        if raw_com_doc:
+            # Extraemos de forma segura tanto si es un Diccionario como un Objeto Document
+            meta = raw_com_doc.get("metadata", {}) if isinstance(raw_com_doc, dict) else raw_com_doc.metadata
+            content = raw_com_doc.get("page_content", "") if isinstance(raw_com_doc, dict) else raw_com_doc.page_content
+
+            com_ctx_for_llm = {
+                "id": meta.get("id_visita", "N/A"),
+                "title": f"Visita a {meta.get('cliente', 'Desconocido')}",
+                "body": content,
+            }
+
+        clin_ctx_for_llm = {}
+        if raw_clin_doc:
+            meta = raw_clin_doc.get("metadata", {}) if isinstance(raw_clin_doc, dict) else raw_clin_doc.metadata
+            content = raw_clin_doc.get("page_content", "") if isinstance(raw_clin_doc,
+                                                                         dict) else raw_clin_doc.page_content
+
+            clin_ctx_for_llm = {
+                "id": meta.get("medicamento", "N/A"),
+                "title": f"Ficha Técnica: {meta.get('medicamento', 'Desconocido')}",
+                "body": content,
+            }
+
+        return {
+            "commercial_context": json.dumps(com_ctx_for_llm, ensure_ascii=False, indent=2),
+            "clinical_context": json.dumps(clin_ctx_for_llm, ensure_ascii=False, indent=2),
+            "raw_commercial_context": com_ctx_for_llm,
+            "raw_clinical_context": clin_ctx_for_llm,
+        }
+
 
     def _compliance_gate_node(self, state: AgentState) -> AgentState:
         """Nodo 2: Valida si la acción del delegado respeta la Ficha Técnica."""
@@ -177,16 +200,22 @@ class AgentOrchestrator:
             )
             is_compliant = result.is_compliant
             reasoning = result.reasoning
+            chain_of_thought = result.chain_of_thought
             logger.info(
                 f"Evaluación de Compliance completada. Resultado: is_compliant={is_compliant}"
             )
         except Exception as e:
             is_compliant = False
             reasoning = f"Fallo en la validación estructurada (Fallback a false): {str(e)}"
+            chain_of_thought = ["Error en la validación"]
             logger.exception(
                 "Excepción durante la invocación del guardrail de compliance:"
             )
-        return {"is_compliant": is_compliant, "compliance_reasoning": reasoning}
+        return {
+            "is_compliant": is_compliant,
+            "compliance_reasoning": reasoning,
+            "compliance_chain_of_thought": chain_of_thought
+        }
 
     def _generate_alert_node(self, state: AgentState) -> AgentState:
         """Nodo 3A: Se ejecuta si el delegado violó las reglas de compliance."""
@@ -240,7 +269,6 @@ class AgentOrchestrator:
                 }
             )
 
-            # Concatenamos el análisis ML con la estrategia para el log final
             strategic_insight = (
                 f"📊 ANÁLISIS PREDICTIVO (ML):\n{result.ml_rationale}\n\n"
                 f"🎯 ESTRATEGIA COMERCIAL:\n{result.strategic_insight}"
@@ -263,11 +291,9 @@ class AgentOrchestrator:
         """Nodo ML: Simula los algoritmos core (scoring, segmentación, valor)."""
         logger.info("Ejecutando nodo: predictive_scoring_node (Mock ML/DL)")
 
-        # En producción, aquí llamaríamos a los modelos alojados en Vertex AI
-        # consumiendo las features extraídas del historial del cliente.
         mock_ml_output = {
             "client_segment": "High-Potential / Early Adopter",
-            "churn_risk_score": 0.12,  # Riesgo de abandono muy bajo
+            "churn_risk_score": 0.12,
             "predicted_value_tier": "Tier 1 (Top 20% prescriptores)",
             "recommended_action_type": "Upsell / Consolidación de cuota"
         }
@@ -279,7 +305,7 @@ class AgentOrchestrator:
         """Decide el camino en base al status de compliance."""
         if state["is_compliant"]:
             logger.info("Enrutando hacia: predictive_scoring")
-            return "predictive_scoring"  # Modificado: Ahora va al nodo ML primero
+            return "predictive_scoring"
         else:
             logger.info("Enrutando hacia: generate_alert")
             return "generate_alert"
@@ -287,28 +313,23 @@ class AgentOrchestrator:
     def _build_graph(self):
         workflow = StateGraph(AgentState)
 
-        # 1. Añadir los nodos
         workflow.add_node("retrieve", self._retrieve_data_node)
         workflow.add_node("compliance_gate", self._compliance_gate_node)
-        workflow.add_node("predictive_scoring", self._predictive_scoring_node)  # NUEVO NODO
+        workflow.add_node("predictive_scoring", self._predictive_scoring_node)
         workflow.add_node("generate_insight", self._generate_actionable_insight_node)
         workflow.add_node("generate_alert", self._generate_alert_node)
 
-        # 2. Definir el flujo (Edges)
         workflow.set_entry_point("retrieve")
         workflow.add_edge("retrieve", "compliance_gate")
 
-        # 3. Enrutamiento condicional
         workflow.add_conditional_edges(
             "compliance_gate",
             self._route_compliance,
             {"predictive_scoring": "predictive_scoring", "generate_alert": "generate_alert"},
         )
 
-        # 4. Conectar el nodo ML con el generador de insights
         workflow.add_edge("predictive_scoring", "generate_insight")
 
-        # 5. Finalizar el grafo
         workflow.add_edge("generate_insight", END)
         workflow.add_edge("generate_alert", END)
 
