@@ -34,7 +34,7 @@ export function SttCard({ scenario }: { scenario: Scenario }) {
         <Metric label={t('stt.inference')} value={`${m.inferenceMs} ms`} />
         <Metric label={t('stt.rtf')} value={m.rtf.toFixed(4)} />
         <Metric label={t('stt.latency')} value={`${m.endpointLatencyMs} ms`} />
-        <Metric label={t('stt.confidence')} value={`${(m.avgConfidence * 100).toFixed(0)} %`} />
+        <Metric label={t('stt.confidence')} value={`${(m.avgConfidence * 100).toFixed(2)} %`} />
       </div>
     </ResultCard>
   )

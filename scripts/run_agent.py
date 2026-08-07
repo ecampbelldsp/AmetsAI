@@ -26,9 +26,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=bool,
-        # choices=["local", "google"],
         default=False,
         help="Elige el modelo a utilizar: 'local' para el modelo local, 'google' para el modelo de Google."
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["stream", "batch"],
+        default="stream",
+        help="Modo de inferencia STT. 'stream' simula websockets, 'batch' procesa todo de golpe."
     )
     args = parser.parse_args()
 
@@ -40,24 +46,35 @@ if __name__ == "__main__":
     # 1. Inicializar el motor STT
     logger.info("Inicializando el motor STT...")
     engine = STTEngine(asr_model_size="base", language="es", device="cuda", compute_type="float16")
-    session = engine.create_session()
 
     # 2. Procesar el archivo de audio
     logger.info(f"Cargando y remuestreando: {TEST_AUDIO_PATH}")
     audio_data, _ = librosa.load(TEST_AUDIO_PATH, sr=16000, mono=True)
-    raw_audio_bytes = audio_data.astype(np.float32).tobytes()
 
-    logger.info("Simulando transmisión de WebSocket y transcribiendo...")
     transcription = ""
-    bytes_per_chunk = NETWORK_CHUNK_SIZE * 4
-    for i in range(0, len(raw_audio_bytes), bytes_per_chunk):
-        byte_chunk = raw_audio_bytes[i: i + bytes_per_chunk]
-        record = session.process_chunk(byte_chunk, initial_prompt=vocabulary)
-        if record and record["type"] == "transcript":
-            logger.info(f"Fragmento capturado: {record['text']}")
-            transcription += record["text"] + " "
 
-    logger.info(f"Transcripción final obtenida: '{transcription.strip()}'")
+    if args.mode == "stream":
+        logger.info("Simulando transmisión de WebSocket y transcribiendo...")
+        session = engine.create_session()
+        raw_audio_bytes = audio_data.astype(np.float32).tobytes()
+        bytes_per_chunk = NETWORK_CHUNK_SIZE * 4
+
+        for i in range(0, len(raw_audio_bytes), bytes_per_chunk):
+            byte_chunk = raw_audio_bytes[i: i + bytes_per_chunk]
+            record = session.process_chunk(byte_chunk, initial_prompt=vocabulary)
+            if record and record["type"] == "transcript":
+                logger.info(f"Fragmento capturado: {record['text']}")
+                transcription += record["text"] + " "
+
+        transcription = transcription.strip()
+
+    elif args.mode == "batch":
+        logger.info("Procesando el audio en modo batch...")
+        audio_array = audio_data.astype(np.float32)
+        record = engine.transcribe_batch(audio_array, sample_rate=16000, initial_prompt=vocabulary)
+        transcription = record.get("text", "")
+
+    logger.info(f"Transcripción final obtenida: '{transcription}'")
 
     # 3. Inicializar componentes de RAG y Agente
     logger.info("Inicializando modelo de Embeddings y Vector DB...")

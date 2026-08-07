@@ -34,6 +34,14 @@ type AnalysisResult = {
     predicted_value_tier: string
     recommended_action_type: string
   }
+  // STT metadata fields from backend
+  audio_duration_s?: number
+  inference_time_ms?: number
+  rtf?: number
+  endpoint_latency_ms?: number
+  average_words_confidence?: number
+  // Add the array type here
+  words_data?: { word: string; start: number; end: number; confidence: number }[]
 }
 
 export function Workspace() {
@@ -224,15 +232,25 @@ export function Workspace() {
           }
         },
         metrics: {
-          audioDurationS: 0,
-          inferenceMs: 0,
-          rtf: 0,
-          endpointLatencyMs: 0,
-          words: 0,
-          wpm: 0,
+          audioDurationS: result.audio_duration_s ?? 0,
+          inferenceMs: result.inference_time_ms ?? 0,
+          rtf: result.rtf ?? 0,
+          endpointLatencyMs: result.endpoint_latency_ms ?? 0,
+
+          // Fix: Use the exact property name defined in STTMetrics
+          avgConfidence: result.average_words_confidence ?? 0,
+
+          words: result.transcription ? result.transcription.split(/\s+/).filter(Boolean).length : 0,
+          wpm: result.audio_duration_s && result.audio_duration_s > 0
+            ? Math.round((result.transcription ? result.transcription.split(/\s+/).filter(Boolean).length : 0) / (result.audio_duration_s / 60))
+            : 0,
           talkToListen: [0, 0],
         },
-        words: { es: [], en: [] },
+        // Replace the empty arrays with the mapped data:
+        words: {
+          es: result.words_data || [],
+          en: result.words_data || []
+        },
         commercialContext: result.commercial_context,
         clinicalContext: result.clinical_context,
       }

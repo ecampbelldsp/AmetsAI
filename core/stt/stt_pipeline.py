@@ -23,6 +23,46 @@ class STTEngine:
     def create_session(self):
         return STTStreamSession(self.asr_model, self.vad_model, language = self.language)
 
+    def transcribe_batch(self, audio_data: np.ndarray, sample_rate: int = 16000, initial_prompt: str = None) -> Dict[
+        str, Any]:
+        """Processes the entire audio array at once."""
+        start_transcription = time.time()
+
+        # Utilizing built-in VAD filter for batch mode efficiency
+        segments, _ = self.asr_model.transcribe(
+            audio_data, beam_size=1, language=self.language, word_timestamps=True, vad_filter=True,
+            initial_prompt=initial_prompt
+        )
+
+        inference_time_s = time.time() - start_transcription
+        audio_duration_s = len(audio_data) / sample_rate
+
+        full_text = ""
+        words_data = []
+
+        for segment in segments:
+            for word in segment.words:
+                full_text += word.word + " "
+                words_data.append({
+                    "word": word.word.strip(),
+                    "start": word.start,
+                    "end": word.end,
+                    "confidence": word.probability
+                })
+
+        full_text = full_text.strip()
+        rtf = inference_time_s / audio_duration_s if audio_duration_s > 0 else 0
+
+        return {
+            "type": "transcript",
+            "text": full_text,
+            "metrics": {
+                "audio_duration_s": round(audio_duration_s, 2),
+                "inference_time_ms": round(inference_time_s * 1000, 0),
+                "rtf": round(rtf, 4),
+            },
+            "words_data": words_data
+        }
 
 class STTStreamSession:
     """Manages the audio buffer, VAD state machine, and precise metric extraction."""

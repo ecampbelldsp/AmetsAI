@@ -82,31 +82,40 @@ stt_engine, db_manager, agent_orchestrator = load_models()
 # Endpoints de la API
 # ==========================================
 @app.post("/process-audio/")
-async def process_audio(file: UploadFile = File(...), use_local_model: bool = False):
+async def process_audio(file: UploadFile = File(...), use_local_model: bool = False, streaming: bool = False):
     """
     Endpoint para procesar un archivo de audio, transcribirlo y obtener insights.
+    Permite alternar entre procesamiento en batch (por defecto) a streaming.
     """
     try:
         # 1. Cargar y Remuestrear el Audio
         logger.info(f"Procesando archivo de audio: {file.filename}")
         audio_data, _ = librosa.load(file.file, sr=16000, mono=True)
-        raw_audio_bytes = audio_data.astype(np.float32).tobytes()
 
         # 2. Transcripción del Audio
-        logger.info("Iniciando transcripción de audio...")
-        vocabulary = "Glucofast, posología, insuficiencia renal moderada."
-        session = stt_engine.create_session()
-        transcription = ""
-        NETWORK_CHUNK_SIZE = 2048
-        bytes_per_chunk = NETWORK_CHUNK_SIZE * 4
-        
-        for i in range(0, len(raw_audio_bytes), bytes_per_chunk):
-            byte_chunk = raw_audio_bytes[i: i + bytes_per_chunk]
-            record = session.process_chunk(byte_chunk, initial_prompt=vocabulary)
-            if record and record["type"] == "transcript":
-                transcription += record["text"] + " "
-        
-        final_transcription = transcription.strip()
+        logger.info(f"Iniciando transcripción de audio (Streaming: {streaming})...")
+        vocabulary = "Glucofast, posología, insuficiencia renal moderada, doctora."
+
+        if streaming:
+            raw_audio_bytes = audio_data.astype(np.float32).tobytes()
+            session = stt_engine.create_session()
+            transcription = ""
+            NETWORK_CHUNK_SIZE = 2048
+            bytes_per_chunk = NETWORK_CHUNK_SIZE * 4
+
+            for i in range(0, len(raw_audio_bytes), bytes_per_chunk):
+                byte_chunk = raw_audio_bytes[i: i + bytes_per_chunk]
+                record = session.process_chunk(byte_chunk, initial_prompt=vocabulary)
+                if record and record["type"] == "transcript":
+                    transcription += record["text"] + " "
+
+            final_transcription = transcription.strip()
+        else:
+            # Batch Processing
+            audio_array = audio_data.astype(np.float32)
+            record = stt_engine.transcribe_batch(audio_array, sample_rate=16000, initial_prompt=vocabulary)
+            final_transcription = record.get("text", "")
+
         logger.info(f"Transcripción final: '{final_transcription}'")
 
         if not final_transcription:
@@ -147,6 +156,8 @@ async def process_audio(file: UploadFile = File(...), use_local_model: bool = Fa
                 "en": raw_clin.get("body", "No data")
             }
         }
+        # Ensure record is a dictionary to prevent AttributeError if record is None
+        record = record if isinstance(record, dict) else {}
 
         logger.info("Proceso completado. Devolviendo resultados estructurados para la UI.")
         return {
@@ -159,6 +170,15 @@ async def process_audio(file: UploadFile = File(...), use_local_model: bool = Fa
             "commercial_context": commercial_doc,
             "clinical_context": clinical_doc,
             "ml_insights": final_state.get('ml_insights', {}),
+            # STT metadata
+            "audio_duration_s": record.get("metrics", {}).get("audio_duration_s", 0),
+            "inference_time_ms": record.get("metrics", {}).get("inference_time_ms", 0),
+            "rtf": record.get("metrics", {}).get("rtf", 0),
+            "endpoint_latency_ms": record.get("metrics", {}).get("endpoint_latency_ms", 0),
+            "average_words_confidence": np.mean(
+                [word["confidence"] for word in record.get("words_data", [])]) if record.get("words_data") else 0,
+            # Add this line to pass the array to the UI
+            "words_data": record.get("words_data", []),
         }
     except Exception as e:
         logger.error(f"Error durante el procesamiento del audio: {e}", exc_info=True)
