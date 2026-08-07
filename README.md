@@ -2,6 +2,9 @@
 
 AmetsAI es una plataforma de inteligencia comercial para la industria farmacéutica. Convertimos las interacciones de campo del delegado y del visitador médico en insights estratégicos y tácticos.
 
+![img.png](img.png)
+![img_1.png](img_1.png)
+
 ## Arquitectura
 
 La plataforma se compone de tres partes principales:

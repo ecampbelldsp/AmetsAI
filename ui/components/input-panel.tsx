@@ -37,6 +37,19 @@ export function InputPanel({
   const [seconds, setSeconds] = useState(0)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [audioSrc, setAudioSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (audioFile) {
+      const url = URL.createObjectURL(audioFile)
+      setAudioSrc(url)
+
+      return () => {
+        URL.revokeObjectURL(url)
+        setAudioSrc(null)
+      }
+    }
+  }, [audioFile])
 
   useEffect(() => {
     if (recording) {
@@ -113,12 +126,15 @@ export function InputPanel({
         </button>
       </div>
 
-      {audioFile && (
-        <div className="flex items-center gap-2 rounded-lg bg-background p-2.5 text-sm text-muted-foreground">
-          <Paperclip className="h-4 w-4 shrink-0" />
-          <span className="truncate" title={audioFile.name}>
-            {audioFile.name}
-          </span>
+      {audioFile && audioSrc && (
+        <div className="flex flex-col gap-2 rounded-lg bg-background p-2.5 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Paperclip className="h-4 w-4 shrink-0" />
+            <span className="truncate" title={audioFile.name}>
+              {audioFile.name}
+            </span>
+          </div>
+          <audio src={audioSrc} controls className="h-10 w-full" />
         </div>
       )}
 
