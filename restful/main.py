@@ -226,5 +226,10 @@ async def process_text(input_data: TextInput):
 def read_root():
     return {"message": "API para el análisis de interacciones"}
 
+if __name__ == "__main__":
+    import uvicorn
+    # Ejecuta el servidor en el puerto 8000, exponiéndolo en localhost (o la red)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
 # Para ejecutar la aplicación:
 # uvicorn main:app --reload
