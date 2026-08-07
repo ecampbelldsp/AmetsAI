@@ -120,19 +120,32 @@ async def process_audio(file: UploadFile = File(...), use_local_model: bool = Fa
 
         # 4. Devolver Resultados
         # Formatear los contextos para que la UI no rompa (espera title.es y body.es)
-        commercial_str = final_state.get('commercial_context', '{}')
-        clinical_str = final_state.get('clinical_context', '{}')
+        # Reemplazar el bloque de 'commercial_doc' y 'clinical_doc' con esto:
+        raw_com = final_state.get('raw_commercial_context', {})
+        raw_clin = final_state.get('raw_clinical_context', {})
 
         commercial_doc = {
-            "id": "COM-RAG",
-            "title": {"es": "Historial CRM", "en": "CRM History"},
-            "body": {"es": commercial_str, "en": commercial_str}
+            "id": raw_com.get("id", "COM-RAG"),
+            "title": {
+                "es": raw_com.get("title", "Historial CRM"),
+                "en": raw_com.get("title", "CRM History")
+            },
+            "body": {
+                "es": raw_com.get("body", "Sin datos"),
+                "en": raw_com.get("body", "No data")
+            }
         }
 
         clinical_doc = {
-            "id": "CLI-RAG",
-            "title": {"es": "Ficha Técnica", "en": "Clinical Data"},
-            "body": {"es": clinical_str, "en": clinical_str}
+            "id": raw_clin.get("id", "CLI-RAG"),
+            "title": {
+                "es": raw_clin.get("title", "Ficha Técnica"),
+                "en": raw_clin.get("title", "Clinical Data")
+            },
+            "body": {
+                "es": raw_clin.get("body", "Sin datos"),
+                "en": raw_clin.get("body", "No data")
+            }
         }
 
         logger.info("Proceso completado. Devolviendo resultados estructurados para la UI.")
@@ -165,19 +178,32 @@ async def process_text(input_data: TextInput):
         final_state = agent_orchestrator.invoke(input_state)
 
         # Formatear los contextos
-        commercial_str = final_state.get('commercial_context', '{}')
-        clinical_str = final_state.get('clinical_context', '{}')
+        # Reemplazar el bloque de 'commercial_doc' y 'clinical_doc' con esto:
+        raw_com = final_state.get('raw_commercial_context', {})
+        raw_clin = final_state.get('raw_clinical_context', {})
 
         commercial_doc = {
-            "id": "COM-RAG",
-            "title": {"es": "Historial CRM", "en": "CRM History"},
-            "body": {"es": commercial_str, "en": commercial_str}
+            "id": raw_com.get("id", "COM-RAG"),
+            "title": {
+                "es": raw_com.get("title", "Historial CRM"),
+                "en": raw_com.get("title", "CRM History")
+            },
+            "body": {
+                "es": raw_com.get("body", "Sin datos"),
+                "en": raw_com.get("body", "No data")
+            }
         }
 
         clinical_doc = {
-            "id": "CLI-RAG",
-            "title": {"es": "Ficha Técnica", "en": "Clinical Data"},
-            "body": {"es": clinical_str, "en": clinical_str}
+            "id": raw_clin.get("id", "CLI-RAG"),
+            "title": {
+                "es": raw_clin.get("title", "Ficha Técnica"),
+                "en": raw_clin.get("title", "Clinical Data")
+            },
+            "body": {
+                "es": raw_clin.get("body", "Sin datos"),
+                "en": raw_clin.get("body", "No data")
+            }
         }
 
         logger.info("Proceso de texto completado. Devolviendo resultados a la UI.")

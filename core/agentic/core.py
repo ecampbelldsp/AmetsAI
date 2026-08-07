@@ -145,9 +145,9 @@ class AgentOrchestrator:
 
         com_ctx_for_llm = {}
         if raw_com_doc:
-            # Extraemos de forma segura tanto si es un Diccionario como un Objeto Document
-            meta = raw_com_doc.get("metadata", {}) if isinstance(raw_com_doc, dict) else raw_com_doc.metadata
-            content = raw_com_doc.get("page_content", "") if isinstance(raw_com_doc, dict) else raw_com_doc.page_content
+            # CORRECCIÓN: Usar 'metadatos' y 'contenido' devueltos por vector_db.py
+            meta = raw_com_doc.get("metadatos", {}) if isinstance(raw_com_doc, dict) else raw_com_doc.metadata
+            content = raw_com_doc.get("contenido", "") if isinstance(raw_com_doc, dict) else raw_com_doc.page_content
 
             com_ctx_for_llm = {
                 "id": meta.get("id_visita", "N/A"),
@@ -157,9 +157,9 @@ class AgentOrchestrator:
 
         clin_ctx_for_llm = {}
         if raw_clin_doc:
-            meta = raw_clin_doc.get("metadata", {}) if isinstance(raw_clin_doc, dict) else raw_clin_doc.metadata
-            content = raw_clin_doc.get("page_content", "") if isinstance(raw_clin_doc,
-                                                                         dict) else raw_clin_doc.page_content
+            # CORRECCIÓN: Usar 'metadatos' y 'contenido'
+            meta = raw_clin_doc.get("metadatos", {}) if isinstance(raw_clin_doc, dict) else raw_clin_doc.metadata
+            content = raw_clin_doc.get("contenido", "") if isinstance(raw_clin_doc, dict) else raw_clin_doc.page_content
 
             clin_ctx_for_llm = {
                 "id": meta.get("medicamento", "N/A"),
@@ -173,7 +173,6 @@ class AgentOrchestrator:
             "raw_commercial_context": com_ctx_for_llm,
             "raw_clinical_context": clin_ctx_for_llm,
         }
-
 
     def _compliance_gate_node(self, state: AgentState) -> AgentState:
         """Nodo 2: Valida si la acción del delegado respeta la Ficha Técnica."""

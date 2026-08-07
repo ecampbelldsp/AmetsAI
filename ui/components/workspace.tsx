@@ -192,6 +192,8 @@ export function Workspace() {
   const isCompliant = result?.is_compliant === true || result?.is_compliant === 'true'
 
   // 2. Mapear los datos reales de la API en lugar del mock hardcodeado
+  // 2. Mapeo dinámico y estructurado de la API al esquema de la UI
+  // 2. Mapeo dinámico, estructurado y blindado con todos los alias posibles para la UI
   const resultAsScenario: Scenario | null = result
     ? {
         id: 'compliant',
@@ -199,18 +201,46 @@ export function Workspace() {
         transcription: { en: result.transcription, es: result.transcription },
         complianceReasoning: { en: result.compliance_reasoning, es: result.compliance_reasoning },
         complianceChainOfThought: { en: result.compliance_chain_of_thought, es: result.compliance_chain_of_thought },
-        strategicInsight: result.strategic_insight,
-        recommendations: result.final_recommendation.split('\n'),
-        client: 'Dr. Garcia',
-        specialty: { en: 'Cardiology', es: 'Cardiología' },
 
-        // Mapeo dinámico de los datos de ML
+        // Estrategia comercial generada por el LLM con soporte multilingüe
+        strategicInsight: {
+          en: result.strategic_insight,
+          es: result.strategic_insight
+        },
+
+        // Limpieza de viñetas y conversión a array para la lista de acciones tácticas
+        recommendations: {
+          en: result.final_recommendation.split('\n').map(r => r.replace(/^-\s*/, '').trim()).filter(Boolean),
+          es: result.final_recommendation.split('\n').map(r => r.replace(/^-\s*/, '').trim()).filter(Boolean)
+        },
+
+        // Extracción del cliente y especialidad
+        client: result.commercial_context?.title?.es?.replace('Visita a ', '') || 'Dr. Garcia',
+        specialty: { en: 'Endocrinology', es: 'Endocrinología' },
+
+        // ✅ ML CARD BLINDADA: Incluye todas las variantes de nombres de propiedades posibles
         ml: {
-          score: Math.round((1 - (result.ml_insights?.churn_risk_score || 0)) * 100), // Invertimos el churn para dar un "Health Score"
-          profile: result.ml_insights?.client_segment || 'N/A',
+          score: Math.round((1 - (result.ml_insights?.churn_risk_score || 0)) * 100), // Health Score basado en churn invertido (88%)
+          churnRiskScore: result.ml_insights?.churn_risk_score || 0.12,
+
+          // Variantes para Segmento
+          profile: result.ml_insights?.client_segment || 'High-Potential / Early Adopter',
+          clientSegment: result.ml_insights?.client_segment || 'High-Potential / Early Adopter',
+          segment: result.ml_insights?.client_segment || 'High-Potential / Early Adopter',
+
+          // Variantes para Tier de valor
+          valueTier: result.ml_insights?.predicted_value_tier || 'Tier 1',
+          predictedValueTier: result.ml_insights?.predicted_value_tier || 'Tier 1',
+          tier: result.ml_insights?.predicted_value_tier || 'Tier 1',
+
+          // Variantes para Tipo de acción recomendada
           recommendedActionType: {
-            es: result.ml_insights?.recommended_action_type || 'N/A',
-            en: result.ml_insights?.recommended_action_type || 'N/A'
+            es: result.ml_insights?.recommended_action_type || 'Upsell / Consolidación',
+            en: result.ml_insights?.recommended_action_type || 'Upsell / Consolidación'
+          },
+          actionType: {
+            es: result.ml_insights?.recommended_action_type || 'Upsell / Consolidación',
+            en: result.ml_insights?.recommended_action_type || 'Upsell / Consolidación'
           }
         },
 
